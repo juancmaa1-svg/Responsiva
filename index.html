@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carta Responsiva - Nodus Flex Center</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #e2e8f0;
+        }
+
+        .document-container {
+            width: 850px;
+            min-height: 1050px;
+            background: white;
+            margin: 2rem auto;
+            padding: 50px 80px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            position: relative;
+        }
+
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        canvas {
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        @media print {
+            body { background: white; margin: 0; }
+            .document-container { box-shadow: none; margin: 0; width: 100%; padding: 0; }
+            .no-print { display: none !important; }
+        }
+
+        /* Estilos de Error */
+        .error-border {
+            border-bottom: 2px solid #ef4444 !important;
+            background-color: #fef2f2 !important;
+        }
+        
+        .error-container {
+            border: 2px solid #ef4444 !important;
+            background-color: #fef2f2 !important;
+            border-radius: 0.5rem;
+        }
+
+        #msg-error-banner {
+            display: none;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Banner de Error Superior (Solo Pantalla) -->
+    <div id="msg-error-banner" class="fixed top-0 left-0 w-full bg-red-600 text-white p-4 text-center font-bold z-[100] shadow-xl no-print">
+        <div class="flex items-center justify-center gap-2">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            <span id="error-text">Por favor, rellena los campos marcados en rojo.</span>
+        </div>
+    </div>
+
+    <div id="responsiva-documento" class="document-container text-[#333]">
+        
+        <!-- Cabecera -->
+        <div class="flex justify-between items-end mb-12">
+            <div class="flex flex-col items-center">
+                <img src="https://i.postimg.cc/nrct8ZXn/LOGO-NODUS-03.png" alt="Nodus Logo" class="h-20 w-auto object-contain">
+            </div>
+            
+            <div class="flex flex-col gap-3 text-[10px] font-bold uppercase w-1/2">
+                <div class="flex justify-end gap-4">
+                    <div class="flex flex-col border-b border-black pb-1 w-24">
+                        <span class="text-gray-400 mb-1 text-[8px]">FECHA:</span>
+                        <input type="date" id="input-fecha" class="outline-none bg-transparent font-bold">
+                    </div>
+                    <div class="flex flex-col border-b border-black pb-1 w-20">
+                        <span class="text-gray-400 mb-1 text-[8px]">HORA:</span>
+                        <input type="time" id="input-hora" class="outline-none bg-transparent font-bold">
+                    </div>
+                    <div class="flex flex-col border-b border-black pb-1 w-32" id="container-ciudad">
+                        <span class="text-gray-400 mb-1 text-[8px]">CIUDAD:</span>
+                        <select id="select-ciudad" class="outline-none bg-transparent font-bold appearance-none cursor-pointer" onchange="updateCentros()">
+                            <option value="">Elegir...</option>
+                            <option value="Aguascalientes">Aguascalientes</option>
+                            <option value="Leon">León</option>
+                            <option value="San Luis">San Luis</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex flex-col border-b border-black pb-1 w-full" id="container-centro">
+                    <span class="text-gray-400 mb-1 text-[8px]">CENTRO:</span>
+                    <select id="select-centro" class="outline-none bg-transparent font-bold appearance-none cursor-pointer" disabled>
+                        <option value="">Elija Ciudad Primero</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <h1 class="text-2xl font-black mb-8 text-[#001A3D] tracking-tight uppercase">Carta responsiva de Sala de Juntas</h1>
+
+        <!-- Tipo de Sala -->
+        <section class="mb-8">
+            <h2 class="font-bold text-[10px] mb-4 uppercase text-[#001A3D] tracking-widest">TIPO DE SALA (Selección única):</h2>
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 p-2 transition-all" id="sala-container">
+                <label class="flex items-center gap-2 text-[11px] font-medium cursor-pointer p-2 border border-gray-100 rounded-lg hover:bg-slate-50">
+                    <input type="radio" name="tipoSala" value="Sala de video o 6 personas" class="w-4 h-4 accent-[#FF9A62]">
+                    <span>Sala de video o 6 personas</span>
+                </label>
+                <label class="flex items-center gap-2 text-[11px] font-medium cursor-pointer p-2 border border-gray-100 rounded-lg hover:bg-slate-50">
+                    <input type="radio" name="tipoSala" value="Sala de 10 personas" class="w-4 h-4 accent-[#FF9A62]">
+                    <span>Sala de 10 personas</span>
+                </label>
+                <label class="flex items-center gap-2 text-[11px] font-medium cursor-pointer p-2 border border-gray-100 rounded-lg hover:bg-slate-50">
+                    <input type="radio" name="tipoSala" value="Sala de 20 personas" class="w-4 h-4 accent-[#FF9A62]">
+                    <span>Sala de 20 personas</span>
+                </label>
+                <label class="flex items-center gap-2 text-[11px] font-medium cursor-pointer p-2 border border-gray-100 rounded-lg hover:bg-slate-50">
+                    <input type="radio" name="tipoSala" value="Sala de 25 personas o más" class="w-4 h-4 accent-[#FF9A62]">
+                    <span>Sala de 25 personas o más</span>
+                </label>
+            </div>
+        </section>
+
+        <!-- Texto Cuerpo -->
+        <section class="mb-10 text-[13px] leading-9">
+            <p>
+                Por medio de la presente, yo, 
+                <input type="text" id="input-nombre" class="mx-1 border-b border-black outline-none px-2 w-72 font-bold text-[#001A3D] transition-colors" placeholder="Nombre completo">, 
+                con identificación oficial con CURP 
+                <input type="text" id="input-curp" class="mx-1 border-b border-black outline-none px-2 w-56 font-bold uppercase text-[#001A3D] transition-colors" placeholder="Clave CURP">, 
+                hago constar que he recibido en calidad de uso temporal, el siguiente equipo:
+            </p>
+        </section>
+
+        <!-- Equipamiento -->
+        <section class="grid grid-cols-3 gap-10 mb-10 text-[11px] text-[#001A3D]">
+            <div class="space-y-4">
+                <div class="flex items-center justify-between border-b border-gray-100 pb-1">
+                    <label class="flex items-center gap-2 font-bold cursor-pointer"><input type="checkbox" class="w-4 h-4 accent-[#FF9A62]"><span>Televisión</span></label>
+                    <input type="number" min="0" placeholder="0" class="w-8 border-b border-gray-400 text-center outline-none bg-transparent">
+                </div>
+                <div class="flex items-center justify-between border-b border-gray-100 pb-1">
+                    <label class="flex items-center gap-2 font-bold cursor-pointer"><input type="checkbox" class="w-4 h-4 accent-[#FF9A62]"><span>Control de TV</span></label>
+                    <input type="number" min="0" placeholder="0" class="w-8 border-b border-gray-400 text-center outline-none bg-transparent">
+                </div>
+                <label class="flex items-center gap-2 font-bold cursor-pointer"><input type="checkbox" class="w-4 h-4 accent-[#FF9A62]"><span>Control de AC</span></label>
+            </div>
+            <div class="space-y-4">
+                <div class="flex items-center justify-between border-b border-gray-100 pb-1">
+                    <label class="flex items-center gap-2 font-bold cursor-pointer"><input type="checkbox" class="w-4 h-4 accent-[#FF9A62]"><span>Plumones</span></label>
+                    <input type="number" min="0" placeholder="0" class="w-8 border-b border-gray-400 text-center outline-none bg-transparent">
+                </div>
+                <div class="flex items-center justify-between border-b border-gray-100 pb-1">
+                    <label class="flex items-center gap-2 font-bold cursor-pointer"><input type="checkbox" class="w-4 h-4 accent-[#FF9A62]"><span>Borrador</span></label>
+                    <input type="number" min="0" placeholder="0" class="w-8 border-b border-gray-400 text-center outline-none bg-transparent">
+                </div>
+                <label class="flex items-center gap-2 font-bold cursor-pointer"><input type="checkbox" class="w-4 h-4 accent-[#FF9A62]"><span>HDMI inalámbrico</span></label>
+            </div>
+            <div class="space-y-4">
+                <label class="flex items-center gap-2 font-bold cursor-pointer"><input type="checkbox" class="w-4 h-4 accent-[#FF9A62]"><span>Cable HDMI</span></label>
+                <label class="flex items-center gap-2 font-bold cursor-pointer"><input type="checkbox" class="w-4 h-4 accent-[#FF9A62]"><span>Adaptador Tipo C</span></label>
+                <div class="flex flex-col gap-1 pt-1">
+                    <label class="flex items-center gap-2 font-bold cursor-pointer"><input type="checkbox" class="w-4 h-4 accent-[#FF9A62]"><span>Otros:</span></label>
+                    <input type="text" class="w-full border-b border-gray-400 bg-transparent px-1 outline-none font-bold">
+                </div>
+            </div>
+        </section>
+
+        <!-- Declaración -->
+        <section class="mb-10 text-[12px]">
+            <p class="mb-6 text-gray-500 font-medium italic text-justify">
+                El cliente declara que ha revisado físicamente la sala de juntas al momento de recibirla y confirma que se encuentra en buen estado de uso y conservación, incluyendo:
+            </p>
+            <div class="grid grid-cols-3 gap-y-5 text-[10px] font-bold uppercase">
+                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 accent-[#FF9A62]"><span>Pisos y/o alfombras</span></label>
+                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 accent-[#FF9A62]"><span>Puertas y cristales</span></label>
+                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 accent-[#FF9A62]"><span>Iluminación</span></label>
+                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 accent-[#FF9A62]"><span>Paredes</span></label>
+                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 accent-[#FF9A62]"><span>Mobiliario</span></label>
+                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 accent-[#FF9A62]"><span>Limpieza general</span></label>
+            </div>
+        </section>
+
+        <!-- Legal -->
+        <div class="mb-10 p-5 bg-[#FDF2ED] rounded-lg border-l-4 border-[#FF9A62]">
+            <p class="text-[11px] leading-relaxed italic text-[#001A3D] font-medium text-justify">
+                Me comprometo a hacer buen uso del equipo mencionado, así como a devolverlo en las mismas condiciones en las que me fue entregado. Acepto que soy responsable de cualquier daño o pérdida, y en caso de presentarse, me comprometo a cubrir el costo correspondiente.
+            </p>
+        </div>
+
+        <!-- Notas -->
+        <section class="mb-12">
+            <span class="font-bold text-[9px] uppercase text-gray-400 tracking-widest">NOTAS / OBSERVACIONES:</span>
+            <textarea class="w-full mt-2 border-b border-gray-200 outline-none resize-none p-1 text-sm bg-transparent min-h-[60px] font-bold text-[#001A3D]"></textarea>
+        </section>
+
+        <!-- Firmas -->
+        <div class="grid grid-cols-2 gap-x-24 mt-20 text-center">
+            <div class="flex flex-col items-center">
+                <div class="relative w-full border-b-2 border-black mb-4 h-32 bg-slate-50">
+                    <canvas id="canvas-firma-1" width="350" height="120" class="w-full h-full"></canvas>
+                    <button onclick="clearCanvas(1)" class="absolute top-1 right-1 p-1 text-gray-300 hover:text-red-500 no-print transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                    </button>
+                </div>
+                <p class="text-[9px] font-black uppercase text-[#001A3D]">Firma Cliente / Responsable</p>
+            </div>
+            <div class="flex flex-col items-center">
+                <div class="relative w-full border-b-2 border-black mb-4 h-32 bg-slate-50">
+                    <canvas id="canvas-firma-2" width="350" height="120" class="w-full h-full"></canvas>
+                    <button onclick="clearCanvas(2)" class="absolute top-1 right-1 p-1 text-gray-300 hover:text-red-500 no-print transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                    </button>
+                </div>
+                <p class="text-[9px] font-black uppercase text-[#001A3D]">Firma Encargado Nodus</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Botones Flotantes (Solo Pantalla) -->
+    <div class="fixed bottom-10 left-1/2 -translate-x-1/2 flex gap-4 no-print z-50">
+        <button id="btn-descargar" onclick="descargarPDF()" class="bg-[#FF9A62] text-white px-12 py-4 rounded-xl font-black text-sm shadow-2xl hover:bg-[#e88552] transition-all hover:scale-105 active:scale-95">DESCARGAR PDF FINAL</button>
+    </div>
+
+    <script>
+        const centros = {
+            'Aguascalientes': ['Bosques', 'San Telmo', 'Punto 45'],
+            'Leon': ['Puerta Bajio piso 8', 'Puerta Bajio piso 2', 'Stadium'],
+            'San Luis': ['Nodus Lleva']
+        };
+
+        // Inicializar Fecha y Hora actual
+        document.getElementById('input-fecha').value = new Date().toISOString().split('T')[0];
+        document.getElementById('input-hora').value = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+
+        function updateCentros() {
+            const ciudad = document.getElementById('select-ciudad').value;
+            const centroSelect = document.getElementById('select-centro');
+            centroSelect.innerHTML = '<option value="">Elegir centro...</option>';
+            
+            if (ciudad && centros[ciudad]) {
+                centroSelect.disabled = false;
+                centros[ciudad].forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c;
+                    opt.textContent = c;
+                    centroSelect.appendChild(opt);
+                });
+            } else {
+                centroSelect.disabled = true;
+                centroSelect.innerHTML = '<option value="">Elija Ciudad Primero</option>';
+            }
+        }
+
+        // Lógica de Firmas (Canvas)
+        function initCanvas(id) {
+            const canvas = document.getElementById('canvas-firma-' + id);
+            const ctx = canvas.getContext('2d');
+            let isDrawing = false;
+
+            ctx.strokeStyle = '#001A3D';
+            ctx.lineWidth = 2.5;
+            ctx.lineCap = 'round';
+
+            const start = (e) => {
+                isDrawing = true;
+                const pos = getPos(e, canvas);
+                ctx.beginPath();
+                ctx.moveTo(pos.x, pos.y);
+            };
+
+            const draw = (e) => {
+                if (!isDrawing) return;
+                const pos = getPos(e, canvas);
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
+            };
+
+            const end = () => isDrawing = false;
+
+            canvas.addEventListener('mousedown', start);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', end);
+            
+            // Soporte Táctil
+            canvas.addEventListener('touchstart', (e) => { 
+                e.preventDefault(); 
+                const touch = e.touches[0];
+                start(touch);
+            }, { passive: false });
+            
+            canvas.addEventListener('touchmove', (e) => { 
+                e.preventDefault(); 
+                const touch = e.touches[0];
+                draw(touch);
+            }, { passive: false });
+            
+            canvas.addEventListener('touchend', end);
+        }
+
+        function getPos(e, canvas) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: (e.clientX || (e.pageX)) - rect.left,
+                y: (e.clientY || (e.pageY)) - rect.top
+            };
+        }
+
+        function clearCanvas(id) {
+            const canvas = document.getElementById('canvas-firma-' + id);
+            canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        initCanvas(1);
+        initCanvas(2);
+
+        // Validación Mejorada
+        function validateFields() {
+            const errors = [];
+            const banner = document.getElementById('msg-error-banner');
+            const errorText = document.getElementById('error-text');
+            
+            // Limpiar estados previos
+            document.querySelectorAll('.error-border, .error-container').forEach(el => {
+                el.classList.remove('error-border', 'error-container');
+            });
+
+            const nombre = document.getElementById('input-nombre');
+            const curp = document.getElementById('input-curp');
+            const ciudad = document.getElementById('select-ciudad');
+            const centro = document.getElementById('select-centro');
+            const salaContainer = document.getElementById('sala-container');
+            const salaChecked = document.querySelector('input[name="tipoSala"]:checked');
+
+            if (!nombre.value.trim()) {
+                nombre.classList.add('error-border');
+                errors.push("Nombre");
+            }
+            if (!curp.value.trim()) {
+                curp.classList.add('error-border');
+                errors.push("CURP");
+            }
+            if (!ciudad.value) {
+                document.getElementById('container-ciudad').classList.add('error-border');
+                errors.push("Ciudad");
+            }
+            if (!centro.value) {
+                document.getElementById('container-centro').classList.add('error-border');
+                errors.push("Centro");
+            }
+            if (!salaChecked) {
+                salaContainer.classList.add('error-container');
+                errors.push("Tipo de Sala");
+            }
+
+            if (errors.length > 0) {
+                errorText.innerText = "⚠️ Falta completar: " + errors.join(", ");
+                banner.style.display = "block";
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                
+                // Ocultar banner después de 6 segundos
+                setTimeout(() => {
+                    banner.style.display = "none";
+                }, 6000);
+                
+                return false;
+            }
+
+            banner.style.display = "none";
+            return true;
+        }
+
+        // Generar PDF
+        async function descargarPDF() {
+            if (!validateFields()) return;
+
+            const btn = document.getElementById('btn-descargar');
+            const nombre = document.getElementById('input-nombre').value.trim();
+
+            btn.innerText = "GENERANDO...";
+            btn.disabled = true;
+
+            const element = document.getElementById('responsiva-documento');
+            const opt = {
+                margin: [10, 10, 10, 10],
+                filename: `Responsiva_Nodus_${nombre.replace(/ /g, '_')}.pdf`,
+                image: { type: 'jpeg', quality: 1 },
+                html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
+                jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' }
+            };
+
+            try {
+                await html2pdf().set(opt).from(element).save();
+                btn.innerText = "DESCARGAR PDF FINAL";
+                btn.disabled = false;
+            } catch (error) {
+                console.error(error);
+                alert("Ocurrió un error al generar el PDF.");
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
